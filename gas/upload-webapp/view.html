@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base target="_top" />
+    <title>Yahoo!ニュース記事・PV数一覧</title>
+    <style>
+      :root {
+        --bg: #f4f6f9;
+        --card: #fff;
+        --text: #1a1a2e;
+        --muted: #5c6370;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --danger: #b91c1c;
+        --border: #e2e8f0;
+        --radius: 12px;
+        --shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 1.5rem 0;
+      }
+      .wrap {
+        width: 80%;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 1rem;
+        letter-spacing: -0.02em;
+      }
+      .meta-lines {
+        font-size: 0.9375rem;
+        color: var(--text);
+        margin-bottom: 1rem;
+        line-height: 1.55;
+        word-break: break-all;
+      }
+      .meta-lines .label {
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .card {
+        background: var(--card);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        padding: 1rem 1rem 1.25rem;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.65rem;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        padding: 0.55rem 1rem;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        background: var(--accent);
+        color: #fff;
+      }
+      button:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .badge {
+        font-size: 0.8125rem;
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .table-wrap {
+        overflow: auto;
+        max-height: min(70vh, 640px);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .table-wrap.no-copy,
+      .table-wrap.no-copy * {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9375rem;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f1f5f9;
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      .sort-btns {
+        display: inline-flex;
+        gap: 0.2rem;
+        margin-left: 0.35rem;
+        vertical-align: middle;
+      }
+      .sort-btn {
+        font: inherit;
+        cursor: pointer;
+        padding: 0.12rem 0.4rem;
+        font-size: 0.8125rem;
+        line-height: 1.2;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+        color: var(--text);
+        font-weight: 700;
+      }
+      .sort-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .sort-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      tbody td {
+        padding: 0.28rem 0.55rem;
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: top;
+        line-height: 1.3;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafbfc;
+      }
+      tbody tr:hover td {
+        background: #eff6ff;
+      }
+      td.col-date {
+        white-space: nowrap;
+        width: 1%;
+      }
+      td.col-pv {
+        text-align: right;
+        white-space: nowrap;
+        width: 1%;
+        font-variant-numeric: tabular-nums;
+      }
+      td.col-title {
+        word-break: break-word;
+      }
+      td.col-title a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      td.col-title a:hover {
+        text-decoration: underline;
+        color: var(--accent-hover);
+      }
+      .msg {
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        line-height: 1.55;
+      }
+      .msg.err {
+        background: #fef2f2;
+        color: var(--danger);
+        border: 1px solid #fecaca;
+      }
+      .msg.info {
+        background: #f8fafc;
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Yahoo!ニュース記事・PV数一覧</h1>
+      <div id="stateLoading" class="msg info">読み込み中…</div>
+      <div id="stateError" class="msg err hidden"></div>
+      <div id="stateMain" class="hidden">
+        <div class="meta-lines" id="metaBlock"></div>
+        <div class="card">
+          <div class="toolbar">
+            <button type="button" id="btnReload">再読み込み</button>
+            <span id="badgeTrunc" class="badge hidden"></span>
+          </div>
+          <div class="table-wrap no-copy" id="tableWrap">
+            <table>
+              <thead>
+                <tr id="theadRow"></tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var stateLoading = document.getElementById('stateLoading');
+        var stateError = document.getElementById('stateError');
+        var stateMain = document.getElementById('stateMain');
+        var metaBlock = document.getElementById('metaBlock');
+        var theadRow = document.getElementById('theadRow');
+        var tbody = document.getElementById('tbody');
+        var btnReload = document.getElementById('btnReload');
+        var badgeTrunc = document.getElementById('badgeTrunc');
+        var tableWrap = document.getElementById('tableWrap');
+
+        var lastPayload = null;
+        var colMap = null;
+        var sortState = { key: 'date', dir: 1 };
+
+        function showError(text) {
+          stateLoading.classList.add('hidden');
+          stateMain.classList.add('hidden');
+          stateError.textContent = text;
+          stateError.classList.remove('hidden');
+        }
+
+        function escapeHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function parseViewDate(s) {
+          var m = String(s)
+            .trim()
+            .match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\([^)]*\)\s+(\d{1,2}):(\d{1,2})$/);
+          if (!m) return 0;
+          return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0).getTime();
+        }
+
+        function parseViewPv(cell) {
+          return parseInt(String(cell || '').replace(/,/g, ''), 10) || 0;
+        }
+
+        /** 合計PVの表示用（3桁区切り） */
+        function formatPvThousands(cell) {
+          var n = parseViewPv(cell);
+          return n.toLocaleString('ja-JP');
+        }
+
+        function isHttpUrl(u) {
+          return /^https?:\/\//i.test(String(u || '').trim());
+        }
+
+        function computeColMap(headers) {
+          var map = { date: -1, title: -1, pv: -1, url: -1 };
+          (headers || []).forEach(function (h, i) {
+            if (h === '配信日時') map.date = i;
+            else if (h === '記事タイトル') map.title = i;
+            else if (h === '合計PV数') map.pv = i;
+            else if (h === 'URL') map.url = i;
+          });
+          return map;
+        }
+
+        function sortRows(rows, map, state) {
+          var sorted = rows.slice();
+          var m = state.dir;
+          if (state.key === 'date') {
+            sorted.sort(function (a, b) {
+              var va = parseViewDate(a[map.date]);
+              var vb = parseViewDate(b[map.date]);
+              if (va !== vb) return (va - vb) * m;
+              var pa = parseViewPv(a[map.pv]);
+              var pb = parseViewPv(b[map.pv]);
+              if (pa !== pb) return (pa - pb) * m;
+              return String(a[map.title] || '').localeCompare(String(b[map.title] || ''), 'ja') * m;
+            });
+          } else {
+            sorted.sort(function (a, b) {
+              var pa = parseViewPv(a[map.pv]);
+              var pb = parseViewPv(b[map.pv]);
+              if (pa !== pb) return (pa - pb) * m;
+              var va = parseViewDate(a[map.date]);
+              var vb = parseViewDate(b[map.date]);
+              if (va !== vb) return (va - vb) * m;
+              return String(a[map.title] || '').localeCompare(String(b[map.title] || ''), 'ja') * m;
+            });
+          }
+          return sorted;
+        }
+
+        function updateSortBtnHighlight() {
+          var btns = tableWrap.querySelectorAll('.sort-btn');
+          for (var i = 0; i < btns.length; i++) {
+            var b = btns[i];
+            b.classList.remove('active');
+            if (
+              b.getAttribute('data-sort-key') === sortState.key &&
+              Number(b.getAttribute('data-dir')) === sortState.dir
+            ) {
+              b.classList.add('active');
+            }
+          }
+        }
+
+        function appendSortButtons(th, label, key) {
+          var span = document.createElement('span');
+          span.textContent = label;
+          th.appendChild(span);
+          th.appendChild(document.createTextNode(' '));
+          var wrap = document.createElement('span');
+          wrap.className = 'sort-btns';
+          var btnAsc = document.createElement('button');
+          btnAsc.type = 'button';
+          btnAsc.className = 'sort-btn';
+          btnAsc.setAttribute('data-sort-key', key);
+          btnAsc.setAttribute('data-dir', '1');
+          btnAsc.setAttribute('aria-label', label + ' 昇順');
+          btnAsc.title = '昇順';
+          btnAsc.textContent = '△';
+          btnAsc.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            sortState = { key: key, dir: 1 };
+            renderBodyOnly();
+          });
+          var btnDesc = document.createElement('button');
+          btnDesc.type = 'button';
+          btnDesc.className = 'sort-btn';
+          btnDesc.setAttribute('data-sort-key', key);
+          btnDesc.setAttribute('data-dir', '-1');
+          btnDesc.setAttribute('aria-label', label + ' 降順');
+          btnDesc.title = '降順';
+          btnDesc.textContent = '▽';
+          btnDesc.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            sortState = { key: key, dir: -1 };
+            renderBodyOnly();
+          });
+          wrap.appendChild(btnAsc);
+          wrap.appendChild(btnDesc);
+          th.appendChild(wrap);
+        }
+
+        function buildThead() {
+          theadRow.innerHTML = '';
+          var hDate = document.createElement('th');
+          appendSortButtons(hDate, '配信日時', 'date');
+          var hTitle = document.createElement('th');
+          hTitle.textContent = '記事タイトル';
+          var hPv = document.createElement('th');
+          appendSortButtons(hPv, '合計PV数', 'pv');
+          theadRow.appendChild(hDate);
+          theadRow.appendChild(hTitle);
+          theadRow.appendChild(hPv);
+          updateSortBtnHighlight();
+        }
+
+        function renderBodyOnly() {
+          if (!lastPayload || !colMap) return;
+          var rows = sortRows(lastPayload.rows || [], colMap, sortState);
+          tbody.innerHTML = '';
+
+          rows.forEach(function (cells) {
+            var tr = document.createElement('tr');
+            var tdDate = document.createElement('td');
+            tdDate.className = 'col-date';
+            tdDate.textContent = cells[colMap.date] != null ? String(cells[colMap.date]) : '';
+
+            var tdTitle = document.createElement('td');
+            tdTitle.className = 'col-title';
+            var titleText = cells[colMap.title] != null ? String(cells[colMap.title]) : '';
+            var url = colMap.url >= 0 && cells[colMap.url] != null ? String(cells[colMap.url]).trim() : '';
+            if (isHttpUrl(url)) {
+              var a = document.createElement('a');
+              a.href = url;
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+              a.textContent = titleText;
+              tdTitle.appendChild(a);
+            } else {
+              tdTitle.textContent = titleText;
+            }
+
+            var tdPv = document.createElement('td');
+            tdPv.className = 'col-pv';
+            tdPv.textContent = formatPvThousands(cells[colMap.pv]);
+
+            tr.appendChild(tdDate);
+            tr.appendChild(tdTitle);
+            tr.appendChild(tdPv);
+            tbody.appendChild(tr);
+          });
+          updateSortBtnHighlight();
+        }
+
+        function render(data) {
+          var map = computeColMap(data.headers || []);
+          if (map.date < 0 || map.title < 0 || map.pv < 0) {
+            showError('整理TSVに「配信日時」「記事タイトル」「合計PV数」の列がありません。');
+            return;
+          }
+
+          lastPayload = data;
+          colMap = map;
+          stateLoading.classList.add('hidden');
+          stateError.classList.add('hidden');
+          stateMain.classList.remove('hidden');
+
+          metaBlock.innerHTML =
+            '<div><span class="label">ファイル名：</span>' +
+            escapeHtml(data.fileName || '—') +
+            '</div>' +
+            '<div><span class="label">更新時刻：</span>' +
+            escapeHtml(data.lastUpdated || '—') +
+            '</div>';
+
+          if (data.truncated) {
+            badgeTrunc.textContent = '先頭 ' + data.rowCount + ' 件のみ表示（上限あり）';
+            badgeTrunc.classList.remove('hidden');
+          } else {
+            badgeTrunc.classList.add('hidden');
+          }
+
+          buildThead();
+          renderBodyOnly();
+        }
+
+        tableWrap.addEventListener('copy', function (e) {
+          e.preventDefault();
+          return false;
+        });
+        tableWrap.addEventListener('cut', function (e) {
+          e.preventDefault();
+        });
+
+        function load() {
+          stateLoading.classList.remove('hidden');
+          stateError.classList.add('hidden');
+          stateMain.classList.add('hidden');
+          btnReload.disabled = true;
+          lastPayload = null;
+          colMap = null;
+          sortState = { key: 'date', dir: 1 };
+
+          google.script.run
+            .withSuccessHandler(function (res) {
+              btnReload.disabled = false;
+              if (res && res.ok) {
+                render(res);
+              } else {
+                showError((res && res.message) || 'データを読み込めませんでした。');
+              }
+            })
+            .withFailureHandler(function (err) {
+              btnReload.disabled = false;
+              showError(err.message || '通信エラーが発生しました。');
+            })
+            .loadLatestProcessedArticles();
+        }
+
+        btnReload.addEventListener('click', load);
+        load();
+      })();
+    </script>
+  </body>
+</html>

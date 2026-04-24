@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base target="_top" />
+    <style>
+      :root {
+        --bg: #f4f6f9;
+        --card: #fff;
+        --text: #1a1a2e;
+        --muted: #5c6370;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --danger: #b91c1c;
+        --ok: #047857;
+        --border: #e2e8f0;
+        --radius: 12px;
+        --shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 2rem 1rem;
+      }
+      .wrap {
+        max-width: 520px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin: 0 0 0.35rem;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+      }
+      .sub-nav a {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .sub-nav a:hover {
+        text-decoration: underline;
+        color: var(--accent-hover);
+      }
+      .card {
+        background: var(--card);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        padding: 1.5rem;
+      }
+      .drop {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 2rem 1.25rem;
+        text-align: center;
+        transition: border-color 0.2s, background 0.2s;
+        cursor: pointer;
+      }
+      .drop:hover,
+      .drop.dragover {
+        border-color: var(--accent);
+        background: rgba(37, 99, 235, 0.04);
+      }
+      .drop p {
+        margin: 0.5rem 0 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .drop strong {
+        color: var(--accent);
+        font-size: 0.95rem;
+      }
+      input[type='file'] {
+        display: none;
+      }
+      .btn-row {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        padding: 0.65rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--muted);
+      }
+      .msg {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        display: none;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .msg.show {
+        display: block;
+      }
+      .msg.err {
+        background: #fef2f2;
+        color: var(--danger);
+        border: 1px solid #fecaca;
+      }
+      .msg.ok {
+        background: #ecfdf5;
+        color: var(--ok);
+        border: 1px solid #a7f3d0;
+      }
+      .msg.warn {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+      .fname {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .filter-block {
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .filter-block label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+        color: var(--text);
+      }
+      .filter-block .hint {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+        line-height: 1.45;
+      }
+      .filter-block input[type='date'] {
+        font: inherit;
+        padding: 0.5rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        width: 100%;
+        max-width: 16rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>記事一覧 TSV アップロード</h1>
+      <p class="sub">
+        Yahoo!ニュース Insights の記事一覧（.tsv）を<strong>1ファイルずつ</strong>アップロードしてください。文字コードは UTF-8・Shift_JIS・UTF-16 LE（メモ帳の「Unicode」）に対応しています。下で選んだ配信日以降の行だけを残し、配信日時・タイトル・合計PV・URL を含む整理TSVを、元ファイルとともに同じフォルダへ保存します。
+      </p>
+      <p class="sub-nav" style="margin: -0.5rem 0 1rem; font-size: 0.875rem">
+        <a id="linkView" href="#">整理データを閲覧</a>
+      </p>
+      <div class="card">
+        <div class="filter-block">
+          <label for="fromDate">整理TSVに含める配信日の開始日</label>
+          <input type="date" id="fromDate" name="fromDate" required />
+          <p class="hint">この年月日の 0:00 以降に配信された記事だけが整理TSVに入ります（当日を含む）。元のTSVはフィルタせずそのまま保存されます。</p>
+        </div>
+        <div class="drop" id="drop" role="button" tabindex="0" aria-label="ファイルを選択">
+          <strong>クリックして1ファイルを選択</strong>
+          <p>または .tsv を1件だけドラッグ＆ドロップ</p>
+          <input type="file" id="file" accept=".tsv,text/tab-separated-values" />
+        </div>
+        <div class="fname" id="fname"></div>
+        <div class="btn-row">
+          <button type="button" class="btn-primary" id="upload" disabled>アップロードして保存</button>
+          <button type="button" class="btn-ghost" id="clear">クリア</button>
+        </div>
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var drop = document.getElementById('drop');
+        var fileInput = document.getElementById('file');
+        var fname = document.getElementById('fname');
+        var uploadBtn = document.getElementById('upload');
+        var clearBtn = document.getElementById('clear');
+        var msg = document.getElementById('msg');
+        var fromDateInput = document.getElementById('fromDate');
+        var selectedFile = null;
+
+        function pad2(n) {
+          return n < 10 ? '0' + n : '' + n;
+        }
+
+        function initDefaultFromDate() {
+          if (fromDateInput.value) return;
+          var d = new Date();
+          fromDateInput.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-01';
+        }
+
+        function canUpload() {
+          return !!(selectedFile && fromDateInput.value);
+        }
+
+        function refreshUploadButton() {
+          uploadBtn.disabled = !canUpload();
+        }
+
+        function showMessage(text, kind) {
+          msg.textContent = text;
+          msg.className = 'msg show ' + (kind || '');
+        }
+
+        function hideMessage() {
+          msg.className = 'msg';
+          msg.textContent = '';
+        }
+
+        function setFile(file) {
+          selectedFile = file;
+          hideMessage();
+          if (!file) {
+            fname.textContent = '';
+            refreshUploadButton();
+            return;
+          }
+          fname.textContent = '選択中: ' + file.name + '（' + formatSize(file.size) + '）';
+          refreshUploadButton();
+        }
+
+        function formatSize(n) {
+          if (n < 1024) return n + ' B';
+          if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+          return (n / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        drop.addEventListener('click', function () {
+          fileInput.click();
+        });
+        drop.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInput.click();
+          }
+        });
+
+        ['dragenter', 'dragover'].forEach(function (ev) {
+          drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            drop.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+          drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            drop.classList.remove('dragover');
+          });
+        });
+        drop.addEventListener('drop', function (e) {
+          var list = e.dataTransfer.files;
+          if (!list || !list.length) return;
+          if (list.length > 1) {
+            showMessage('アップロードできるのは 1 ファイルのみです。', 'err');
+            return;
+          }
+          var f = list[0];
+          if (f) setFile(f);
+        });
+
+        fileInput.addEventListener('change', function () {
+          if (fileInput.files && fileInput.files.length > 1) {
+            fileInput.value = '';
+            showMessage('選択できるのは 1 ファイルのみです。', 'err');
+            setFile(null);
+            return;
+          }
+          var f = fileInput.files && fileInput.files[0];
+          setFile(f || null);
+        });
+
+        fromDateInput.addEventListener('change', refreshUploadButton);
+        fromDateInput.addEventListener('input', refreshUploadButton);
+
+        clearBtn.addEventListener('click', function () {
+          fileInput.value = '';
+          setFile(null);
+        });
+
+        uploadBtn.addEventListener('click', function () {
+          if (!selectedFile) return;
+          if (!fromDateInput.value) {
+            showMessage('整理に含める配信日の開始日を選んでください。', 'err');
+            return;
+          }
+          hideMessage();
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = '変換・保存中…';
+
+          var reader = new FileReader();
+          reader.onerror = function () {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'アップロードして保存';
+            showMessage('ファイルの読み込みに失敗しました。', 'err');
+          };
+          reader.onload = function (e) {
+            var dataUrl = e.target.result;
+            var comma = dataUrl.indexOf(',');
+            var base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+
+            google.script.run
+              .withSuccessHandler(function (res) {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'アップロードして保存';
+                if (res && res.ok) {
+                  var parts = [];
+                  var head =
+                    '保存しました（配信 ' +
+                    (res.filterFromDate || fromDateInput.value) +
+                    ' 以降、整理 ' +
+                    (res.rowCount != null ? res.rowCount + ' 件' : '—') +
+                    '）。';
+                  parts.push(head);
+                  if (res.originalFileUrl) parts.push('元ファイル: ' + res.originalFileUrl);
+                  if (res.processedFileUrl) parts.push('整理TSV: ' + res.processedFileUrl);
+                  showMessage(parts.join('\n'), 'ok');
+                } else {
+                  showMessage((res && res.message) || '保存に失敗しました。', 'err');
+                }
+              })
+              .withFailureHandler(function (err) {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'アップロードして保存';
+                showMessage(err.message || '通信エラーが発生しました。', 'err');
+              })
+              .saveUploadedTsv(base64, selectedFile.name, fromDateInput.value);
+          };
+          reader.readAsDataURL(selectedFile);
+        });
+
+        initDefaultFromDate();
+        refreshUploadButton();
+
+        google.script.run.withSuccessHandler(function (url) {
+          var a = document.getElementById('linkView');
+          if (a && url) {
+            a.href = url + '?page=view';
+          }
+        }).getWebAppBaseUrl();
+
+        google.script.run.withSuccessHandler(function (st) {
+          if (!st || !st.ready) {
+            showMessage(
+              '保存先フォルダが未設定です。スクリプトのプロパティ「UPLOAD_FOLDER_ID」にフォルダ ID を設定し、再度開いてください。',
+              'warn'
+            );
+          }
+        }).getUploadStatus();
+      })();
+    </script>
+  </body>
+</html>
