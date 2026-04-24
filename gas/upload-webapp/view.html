@@ -37,8 +37,20 @@
       h1 {
         font-size: 1.5rem;
         font-weight: 700;
-        margin: 0 0 1rem;
+        margin: 0 0 0.65rem;
         letter-spacing: -0.02em;
+      }
+      .confidential-notice {
+        margin: 0 0 1.25rem;
+        padding: 0.65rem 1rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.45;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        border: 3px solid #b91c1c;
+        border-radius: 8px;
+        background: #fff5f5;
       }
       .meta-lines {
         font-size: 0.9375rem;
@@ -207,6 +219,9 @@
   <body>
     <div class="wrap">
       <h1>Yahoo!ニュース記事・PV数一覧</h1>
+      <p class="confidential-notice" role="note">
+        表示内容は機密です。この画面での閲覧に限ります（複製・外部共有は禁止）。
+      </p>
       <div id="stateLoading" class="msg info">読み込み中…</div>
       <div id="stateError" class="msg err hidden"></div>
       <div id="stateMain" class="hidden">
