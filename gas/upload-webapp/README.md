@@ -2,6 +2,57 @@
 
 Google Apps Script（GAS）の Web アプリとして、Yahoo!ニュース Insights からエクスポートした**記事一覧 TSV**をアップロードし、共有ドライブ上に**元ファイル**と**整理済み TSV**を保存します。別 URL では**整理データの閲覧**（最新ファイルの表形式表示）ができます。
 
+## 処理の流れ（フローチャート）
+
+GitHub や VS Code の Markdown プレビュー、および Mermaid に対応したビューアで図が表示されます。
+
+### 全体：画面の出し分け
+
+```mermaid
+flowchart TD
+  A[ユーザーが Web アプリ URL にアクセス] --> B{クエリ page=view 付き?}
+  B -->|No| C[Upload.html を表示]
+  B -->|Yes| D[view.html を表示]
+  C --> E[TSV 選択・開始日指定・アップロード]
+  D --> F[最新整理 TSV を取得して表表示]
+```
+
+### アップロード〜ドライブ保存（サーバー `saveUploadedTsv`）
+
+```mermaid
+flowchart TD
+  S1[クライアント: Base64 とファイル名と開始日を送信] --> S2{入力検証}
+  S2 -->|.tsv 以外・開始日不正・フォルダ未設定| SE[エラーを返す]
+  S2 -->|OK| S3[Base64 をバイト列にデコード]
+  S3 --> S4[UTF-8 / Shift_JIS / UTF-16 LE 等でデコードし Insights ヘッダを検出]
+  S4 -->|ヘッダ不一致| SE
+  S4 -->|OK| S5[データ行から 配信日時・タイトル・PV・URL を抽出]
+  S5 --> S6[開始日 0:00 未満の行を除外]
+  S6 --> S7[配信日時の昇順でソート]
+  S7 --> S8[整理 TSV 文字列を組み立て BOM 付与]
+  S8 --> S9[共有ドライブ: 元ファイルを保存]
+  S9 --> S10[共有ドライブ: 整理 TSV を保存]
+  S10 --> S11[URL 等を含む成功結果を返す]
+```
+
+### 閲覧：最新ファイルの取得〜表示
+
+```mermaid
+flowchart TD
+  V0[view.html: load を実行] --> V1[サーバー loadLatestProcessedArticles]
+  V1 --> V2{DATA_FOLDER_ID または UPLOAD_FOLDER_ID}
+  V2 -->|どちらも無効| VE[エラーを返す]
+  V2 -->|OK| V3[フォルダ内を走査]
+  V3 --> V4{名前が _整理_YYYYMMDD.tsv 形式のファイルがある?}
+  V4 -->|無し| VE
+  V4 -->|有り| V5[最終更新日時が最新の 1 件を選ぶ]
+  V5 --> V6[ファイル本文をデコードして TSV 行に分割]
+  V6 --> V7[行数上限でデータ行を切り詰め任意]
+  V7 --> V8[headers と rows を JSON で返す]
+  V8 --> V9[ブラウザ: 表を描画・PV は桁区切り]
+  V9 --> V10[△▽ でクライアント側ソート]
+```
+
 ## 構成ファイル
 
 | ファイル | 説明 |
