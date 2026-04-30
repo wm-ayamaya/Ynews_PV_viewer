@@ -403,6 +403,17 @@ function parseTsvLine(line) {
 }
 
 /**
+ * 整理TSV想定ファイル名から、配信フィルタ開始日（_整理_YYYYMMDD）を取り出す。
+ * @param {string} fileName
+ * @return {string|null} YYYY-MM-DD
+ */
+function extractFilterFromIsoFromProcessedName_(fileName) {
+  var m = String(fileName || '').match(/_整理_(\d{4})(\d{2})(\d{2})\.tsv$/i);
+  if (!m) return null;
+  return m[1] + '-' + m[2] + '-' + m[3];
+}
+
+/**
  * 整理済みTSVバイト列を文字列化（UTF-8 / Shift_JIS / UTF-16 LE を簡易判定）
  * @param {byte[]} bytes
  * @return {string}
@@ -423,20 +434,7 @@ function decodeTextForProcessedView(bytes) {
 }
 
 /**
- * データ置き場（DATA_FOLDER_ID、未設定時は UPLOAD_FOLDER_ID）内の
- * 「*_整理_YYYYMMDD.tsv」のうち最終更新が新しい1件を読み、表用データを返す。
- * @return {{
- *   ok: boolean,
- *   message?: string,
- *   fileName?: string,
- *   fileUrl?: string,
- *   lastUpdated?: string,
- *   headers?: string[],
- *   rows?: string[][],
- *   rowCount?: number,
- *   truncated?: boolean,
- *   folderNote?: string
- * }}
+ * @return {{ folderId: string, folderNote: string }}
  */
 function resolveProcessedDataFolder_() {
   var props = PropertiesService.getScriptProperties();
@@ -454,6 +452,25 @@ function resolveProcessedDataFolder_() {
   };
 }
 
+/**
+ * データ置き場内の「*_整理_YYYYMMDD.tsv」のうち最終更新が新しい1件を読み、表用データを返す。
+ * @return {{
+ *   ok: boolean,
+ *   message?: string,
+ *   fileName?: string,
+ *   fileUrl?: string,
+ *   lastUpdated?: string,
+ *   headers?: string[],
+ *   rows?: string[][],
+ *   rowCount?: number,
+ *   truncated?: boolean,
+ *   folderNote?: string,
+ *   statsFilterFromIso?: string|null,
+ *   statsDispatchMin?: string|null,
+ *   statsDispatchMax?: string|null,
+ *   totalArticlesInFile?: number
+ * }}
+ */
 function loadLatestProcessedArticles() {
   var resolved = resolveProcessedDataFolder_();
   var folderId = resolved.folderId;
@@ -511,16 +528,33 @@ function loadLatestProcessedArticles() {
   var rows = [];
   var truncated = false;
   var maxData = MAX_VIEW_ROWS;
+  var dateIdxForStats = headers.indexOf('配信日時');
+  var minMs = null;
+  var maxMs = null;
+  var totalArticlesInFile = Math.max(0, lines.length - 1);
+
   for (var r = 1; r < lines.length; r++) {
-    if (rows.length >= maxData) {
-      truncated = true;
-      break;
+    var rowCells = parseTsvLine(lines[r]);
+    if (dateIdxForStats >= 0 && rowCells.length > dateIdxForStats) {
+      var dStat = parsePublishDate(String(rowCells[dateIdxForStats] || '').trim());
+      if (dStat) {
+        var tStat = dStat.getTime();
+        if (minMs === null || tStat < minMs) minMs = tStat;
+        if (maxMs === null || tStat > maxMs) maxMs = tStat;
+      }
     }
-    rows.push(parseTsvLine(lines[r]));
+    if (rows.length < maxData) {
+      rows.push(rowCells);
+    } else {
+      truncated = true;
+    }
   }
 
   var tz = Session.getScriptTimeZone();
   var lastStr = Utilities.formatDate(file.getLastUpdated(), tz, 'yyyy-MM-dd HH:mm:ss');
+  var filterFromIso = extractFilterFromIsoFromProcessedName_(file.getName());
+  var statsDispatchMin = minMs != null ? Utilities.formatDate(new Date(minMs), tz, 'yyyy/MM/dd HH:mm') : null;
+  var statsDispatchMax = maxMs != null ? Utilities.formatDate(new Date(maxMs), tz, 'yyyy/MM/dd HH:mm') : null;
 
   return {
     ok: true,
@@ -532,5 +566,9 @@ function loadLatestProcessedArticles() {
     rowCount: rows.length,
     truncated: truncated,
     folderNote: resolved.folderNote,
+    statsFilterFromIso: filterFromIso,
+    statsDispatchMin: statsDispatchMin,
+    statsDispatchMax: statsDispatchMax,
+    totalArticlesInFile: totalArticlesInFile,
   };
 }

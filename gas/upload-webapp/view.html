@@ -63,6 +63,61 @@
         font-weight: 700;
         color: var(--muted);
       }
+      .stats-highlight {
+        margin-bottom: 1rem;
+        padding: 0.9rem 1.15rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        line-height: 1.55;
+      }
+      .stats-highlight .stats-title {
+        font-size: 0.8125rem;
+        font-weight: 700;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+        margin-bottom: 0.4rem;
+      }
+      .stats-highlight .stats-period-main {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.02em;
+        margin-bottom: 0.45rem;
+      }
+      .stats-highlight .stats-range {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .stats-highlight .stats-count {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.35rem 1rem;
+      }
+      .stats-highlight .stats-count-main {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .stats-highlight .stats-count-wmapv {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .stats-highlight .stats-count-note {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-left: 0.35rem;
+      }
       .card {
         background: var(--card);
         border-radius: var(--radius);
@@ -182,6 +237,43 @@
         white-space: nowrap;
         width: 1%;
         font-variant-numeric: tabular-nums;
+        vertical-align: middle;
+      }
+      .pv-cell {
+        position: relative;
+        display: block;
+        min-width: 6.5rem;
+        padding: 0.12em 0;
+        overflow: hidden;
+        border-radius: 4px;
+      }
+      .pv-bar-track {
+        position: absolute;
+        inset: 0;
+        background: rgba(226, 232, 240, 0.75);
+        border-radius: 4px;
+        pointer-events: none;
+      }
+      .pv-bar-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0%;
+        max-width: 100%;
+        background: rgba(37, 99, 235, 0.24);
+        border-radius: 4px 0 0 4px;
+        pointer-events: none;
+      }
+      tbody tr:hover td.col-pv .pv-bar-fill {
+        background: rgba(37, 99, 235, 0.34);
+      }
+      .pv-bar-text {
+        position: relative;
+        z-index: 1;
+        display: block;
+        text-align: right;
+        text-shadow: 0 0 1px #fff, 0 0 3px #fff, 0 0 6px rgba(255, 255, 255, 0.9);
       }
       td.col-title {
         word-break: break-word;
@@ -271,6 +363,69 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+        }
+
+        /** YYYY-MM-DD → 「YYYY年M月D日」 */
+        function formatIsoDateJa(iso) {
+          var m = String(iso || '')
+            .trim()
+            .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (!m) return '';
+          return Number(m[1]) + '年' + Number(m[2]) + '月' + Number(m[3]) + '日';
+        }
+
+        function buildStatsHighlightHtml(data) {
+          var total =
+            typeof data.totalArticlesInFile === 'number'
+              ? data.totalArticlesInFile
+              : (data.rows || []).length;
+          var shown = typeof data.rowCount === 'number' ? data.rowCount : (data.rows || []).length;
+
+          var periodMain = '';
+          if (data.statsFilterFromIso) {
+            periodMain =
+              '<div class="stats-period-main">' +
+              escapeHtml(formatIsoDateJa(data.statsFilterFromIso)) +
+              ' 0:00 以降の配信を対象とした集計です。</div>';
+          } else {
+            periodMain =
+              '<div class="stats-period-main">ファイル名から対象開始日（_整理_YYYYMMDD）を判別できませんでした。</div>';
+          }
+
+          var rangeHtml = '';
+          if (data.statsDispatchMin && data.statsDispatchMax) {
+            rangeHtml =
+              '<div class="stats-range">ファイル内の配信日時（最早〜最遅）: ' +
+              escapeHtml(data.statsDispatchMin) +
+              ' 〜 ' +
+              escapeHtml(data.statsDispatchMax) +
+              '</div>';
+          }
+
+          var countMain =
+            '掲載記事数: ' +
+            total.toLocaleString('ja-JP') +
+            '本';
+          if (data.truncated && total > shown) {
+            countMain +=
+              '<span class="stats-count-note">（一覧は上限のため ' +
+              shown.toLocaleString('ja-JP') +
+              ' 件のみ表示）</span>';
+          }
+
+          return (
+            '<div class="stats-highlight">' +
+            '<div class="stats-title">統計の期間</div>' +
+            periodMain +
+            rangeHtml +
+            '<div class="stats-count">' +
+            '<span class="stats-count-main">' +
+            countMain +
+            '</span>' +
+            '<span class="stats-count-wmapv">※wmapv（動画記事）は含みません。</span>' +
+            '</div>' +
+            '</div>'
+          );
         }
 
         function parseViewDate(s) {
@@ -391,20 +546,66 @@
           theadRow.innerHTML = '';
           var hDate = document.createElement('th');
           appendSortButtons(hDate, '配信日時', 'date');
-          var hTitle = document.createElement('th');
-          hTitle.textContent = '記事タイトル';
           var hPv = document.createElement('th');
           appendSortButtons(hPv, '合計PV数', 'pv');
+          var hTitle = document.createElement('th');
+          hTitle.textContent = '記事タイトル';
           theadRow.appendChild(hDate);
-          theadRow.appendChild(hTitle);
           theadRow.appendChild(hPv);
+          theadRow.appendChild(hTitle);
           updateSortBtnHighlight();
+        }
+
+        /** 一覧表示中の合計PVを100としたときの当該記事の割合（%）で横棒付きPVセルを組み立てる */
+        function appendPvCell(tdPv, cells, displayTotalPv) {
+          var pv = parseViewPv(cells[colMap.pv]);
+          var label = formatPvThousands(cells[colMap.pv]);
+          var sharePct = displayTotalPv > 0 ? (pv / displayTotalPv) * 100 : 0;
+          var pctLabel =
+            displayTotalPv <= 0
+              ? '0'
+              : (Math.round(sharePct * 10) / 10).toFixed(1).replace(/\.0$/, '');
+          var widthPct = displayTotalPv > 0 ? (pv / displayTotalPv) * 100 : 0;
+
+          var wrap = document.createElement('div');
+          wrap.className = 'pv-cell';
+          wrap.setAttribute(
+            'title',
+            '合計PV: ' +
+              label +
+              '（表示中の合計PVに占める割合: ' +
+              pctLabel +
+              '%）'
+          );
+
+          var track = document.createElement('div');
+          track.className = 'pv-bar-track';
+          track.setAttribute('aria-hidden', 'true');
+
+          var fill = document.createElement('div');
+          fill.className = 'pv-bar-fill';
+          fill.style.width = widthPct + '%';
+          fill.setAttribute('aria-hidden', 'true');
+
+          var text = document.createElement('span');
+          text.className = 'pv-bar-text';
+          text.textContent = label;
+
+          wrap.appendChild(track);
+          wrap.appendChild(fill);
+          wrap.appendChild(text);
+          tdPv.appendChild(wrap);
         }
 
         function renderBodyOnly() {
           if (!lastPayload || !colMap) return;
           var rows = sortRows(lastPayload.rows || [], colMap, sortState);
           tbody.innerHTML = '';
+
+          var displayTotalPv = 0;
+          for (var ri = 0; ri < rows.length; ri++) {
+            displayTotalPv += parseViewPv(rows[ri][colMap.pv]);
+          }
 
           rows.forEach(function (cells) {
             var tr = document.createElement('tr');
@@ -429,11 +630,11 @@
 
             var tdPv = document.createElement('td');
             tdPv.className = 'col-pv';
-            tdPv.textContent = formatPvThousands(cells[colMap.pv]);
+            appendPvCell(tdPv, cells, displayTotalPv);
 
             tr.appendChild(tdDate);
-            tr.appendChild(tdTitle);
             tr.appendChild(tdPv);
+            tr.appendChild(tdTitle);
             tbody.appendChild(tr);
           });
           updateSortBtnHighlight();
@@ -453,11 +654,14 @@
           stateMain.classList.remove('hidden');
 
           metaBlock.innerHTML =
+            buildStatsHighlightHtml(data) +
+            '<div class="meta-lines">' +
             '<div><span class="label">ファイル名：</span>' +
             escapeHtml(data.fileName || '—') +
             '</div>' +
             '<div><span class="label">更新時刻：</span>' +
             escapeHtml(data.lastUpdated || '—') +
+            '</div>' +
             '</div>';
 
           if (data.truncated) {
